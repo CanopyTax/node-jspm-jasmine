@@ -8,6 +8,9 @@
     "build": "babel src --out-dir lib",
     "prepublish": "npm run build"
   },
+  "bin": {
+    "jspmjasmine": "./bin/jspmjasmine.js"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/CanopyTax/node-jspm-jasmine.git"
