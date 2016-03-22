@@ -54,3 +54,14 @@ System.registerDynamic('name-of-mocked-dependency-just-like-it-is-imported', ['n
   };
 });
 ```
+
+## Usage with Enzyme
+Although [Enzyme](http://airbnb.io/enzyme/) is not related to jspm or jasmine, the reason this project was started was to figure out an easy way to get a JSPM + React project to run tests with Jasmine and Enzyme. So here's how:
+
+- Create a jasmine helper file, as explained [above](https://github.com/CanopyTax/node-jspm-jasmine#ignoring--mocking-specific-imports)
+- In the jasmine helper file, put the following (this works for react 15.0, see [enzyme's docs for webpack](https://github.com/airbnb/enzyme/blob/master/docs/guides/webpack.md) to find which specific things you need to mock/ignore for other React versions).
+
+```js
+System.registerDynamic("react/lib/ReactContext.js", [], false, function() {})
+System.registerDynamic("react/lib/ExecutionEnvironment.js", [], false, function() {})
+```
