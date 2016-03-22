@@ -43,12 +43,12 @@ What you're about to read is nothing specific to node-jspm-jasmine, but I figure
 
 **Ignoring a dependency**
 ```js
-System.registerDynamic('name-of-dependency-just-like-it-is-imported', [], false, function() {});
+System.registerDynamic('name-of-ignored-dependency-just-like-it-is-imported', [], false, function() {});
 ```
 
 **Mocking a dependency**
 ```js
-System.registerDynamic('name-of-dependency-just-like-it-is-imported', ['name-of-dependency-of-mocked-module'], false, function(require, exports, module) {
+System.registerDynamic('name-of-mocked-dependency-just-like-it-is-imported', ['name-of-dependency-of-mocked-module'], false, function(require, exports, module) {
   module.exports = {
     foo: 'bar',
   };
