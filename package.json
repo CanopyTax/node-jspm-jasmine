@@ -1,6 +1,6 @@
 {
   "name": "node-jspm-jasmine",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Run jasmine tests on a jspm project, without karma",
   "main": "lib/node-jspm-jasmine.js",
   "scripts": {
