@@ -3,7 +3,7 @@ import fs from "fs";
 import jspm from "jspm";
 import Jasmine from "jasmine";
 
-export function runTests(opts) {
+export function runTests(opts, errCallback = function() {}) {
 	const jasmine = new Jasmine();
 
 	const SystemJS = new jspm.Loader();
@@ -22,7 +22,7 @@ export function runTests(opts) {
 
 		jasmine.loadConfig(jasmineConfig);
 
-		const importTheseTestFiles = importTestFiles.bind(null, SystemJS, jasmine, specDir, specFiles);
+		const importTheseTestFiles = importTestFiles.bind(null, SystemJS, jasmine, specDir, specFiles, errCallback);
 
 		// helpers
 		let numHelperGlobsLeft = helpers.length || 0;
@@ -53,7 +53,7 @@ export function runTests(opts) {
 	}
 }
 
-function importTestFiles(SystemJS, jasmine, specDir, specFiles) {
+function importTestFiles(SystemJS, jasmine, specDir, specFiles, errCallback) {
 	let numSpecGlobsLeft = specFiles.length || 0;
 
 	if (numSpecGlobsLeft === 0) {
@@ -73,7 +73,7 @@ function importTestFiles(SystemJS, jasmine, specDir, specFiles) {
 						jasmine.execute();
 					}
 				})
-				.catch(ex => {throw ex});
+				.catch(errCallback);
 			});
 		});
 	}

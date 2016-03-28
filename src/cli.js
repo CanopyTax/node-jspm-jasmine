@@ -1,3 +1,6 @@
 import * as jsApi from './node-jspm-jasmine.js';
 
-jsApi.runTests({});
+jsApi.runTests({}, function(err) {
+	console.error(err);
+	process.exit(1);
+});
