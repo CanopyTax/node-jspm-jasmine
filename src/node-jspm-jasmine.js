@@ -43,13 +43,13 @@ export function runTests(opts, errCallback = function() {}) {
 							importTheseTestFiles();
 						}
 					})
-					.catch(ex => {throw ex});
+					.catch(errCallback);
 				});
 			});
 		}
 
 	} catch(ex) {
-		throw new Error(`Jasmine or Jspm may not be properly configured -- '${ex.toString()}'`);
+		errCallback(new Error(`Jasmine or Jspm may not be properly configured -- '${ex.toString()}'`));
 	}
 }
 
