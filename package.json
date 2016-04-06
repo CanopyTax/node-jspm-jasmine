@@ -39,6 +39,7 @@
     "registry": "https://registry.npmjs.org"
   },
   "dependencies": {
-    "glob": "^7.0.3"
+    "glob": "^7.0.3",
+    "commander": "^2.9.0"
   }
 }

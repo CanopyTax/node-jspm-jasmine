@@ -1,19 +1,56 @@
 import glob from "glob";
 import fs from "fs";
 import jspm from "jspm";
+import path from "path";
 import Jasmine from "jasmine";
 
 export function runTests(opts, errCallback = function() {}) {
-	const jasmine = new Jasmine();
 
+	let packagePath = '.';
+
+	try {
+
+		if ( typeof opts.packagePath === 'string' ) {
+			require(path.join(process.cwd(), opts.packagePath, 'package.json'));
+			packagePath = path.join(process.cwd(), opts.packagePath);
+		}
+
+	} catch(ex) {
+
+		let errorMessage = ex.toString();
+
+		if (ex.code === 'MODULE_NOT_FOUND' &&
+			errorMessage.indexOf('package.json') > -1) {
+			errorMessage =
+				'Could not find package.json at custom path: ' +
+				path.join(process.cwd(), opts.packagePath, 'package.json');
+	}
+
+		errCallback(new Error(errorMessage));
+	}
+
+	jspm.setPackagePath(packagePath);
+
+	const jasmine = new Jasmine();
 	const SystemJS = new jspm.Loader();
 	// For middleware
 	global.System = SystemJS;
 
-	jspm.setPackagePath(".");
-
 	try {
-		const jasmineConfig = require(process.cwd() + '/spec/support/jasmine.json');
+
+		const jasmineConfig =
+			( typeof opts.jasmineConfig === 'object' ?
+				opts.jasmineConfig :
+				require(
+					path.join(
+						( typeof opts.jasmineConfig === 'string' ?
+							opts.jasmineConfig :
+							process.cwd() + '/spec/support'
+						),
+						'jasmine.json'
+					)
+				)
+			);
 		const specDir = jasmineConfig.spec_dir;
 		const specFiles = jasmineConfig.spec_files;
 		delete jasmineConfig.spec_files;
