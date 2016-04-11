@@ -62,7 +62,7 @@ export function runTests(opts, errCallback = function() {}) {
 		const importTheseTestFiles = importTestFiles.bind(null, SystemJS, jasmine, specDir, specFiles, errCallback);
 
 		// helpers
-		let numHelperGlobsLeft = helpers.length || 0;
+		let numHelperGlobsLeft = helpers && helpers.length ? helpers.length : 0;
 
 		if (numHelperGlobsLeft === 0) {
 			importTheseTestFiles();
