@@ -55,7 +55,7 @@ runTests({
     // Provide a custom path to jasmine.json config file.
     // Defaults to path where the script is being
     // executed + '/spec/support/jasmine.json'.
-    jasmineConfig: "PATH/TO/JASMINE/JSON/RELATIVE/TO/CWD/",
+    jasmineConfig: "PATH/TO/JASMINE/JSON/RELATIVE/TO/CWD/config.json",
 
     // Provide a custom path to package.json config file.
     // Defaults to path where the script is being executed.
