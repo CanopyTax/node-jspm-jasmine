@@ -30,7 +30,8 @@ node-jspm-jasmine exposes a cli that is accessible through the `jspmjasmine` com
 ##### Options:
 Custom path to jasmine.json config file:
 
-`jspmjasmine --jasmine-config "PATH/TO/JASMINE/JSON/RELATIVE/TO/CWD/"`
+`jspmjasmine --jasmine-config
+"PATH/TO/JASMINE/JSON/RELATIVE/TO/CWD/config.json"`
 * Note: `jasmine-config` defaults to path where `jspmjasmine` is being executed + `/spec/support/jasmine.json`.
 
 Custom path to package.json config file:

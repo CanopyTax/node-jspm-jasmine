@@ -38,19 +38,8 @@ export function runTests(opts, errCallback = function() {}) {
 
 	try {
 
-		const jasmineConfig =
-			( typeof opts.jasmineConfig === 'object' ?
-				opts.jasmineConfig :
-				require(
-					path.join(
-						( typeof opts.jasmineConfig === 'string' ?
-							opts.jasmineConfig :
-							process.cwd() + '/spec/support'
-						),
-						'jasmine.json'
-					)
-				)
-			);
+		const jasmineConfig = getJasmineConfig(opts.jasmineConfig)
+
 		const specDir = jasmineConfig.spec_dir;
 		const specFiles = jasmineConfig.spec_files;
 		delete jasmineConfig.spec_files;
@@ -114,4 +103,17 @@ function importTestFiles(SystemJS, jasmine, specDir, specFiles, errCallback) {
 			});
 		});
 	}
+}
+
+function getJasmineConfig(config) {
+	if (typeof config === 'object') {
+		return config;
+	}
+
+	if (typeof config === 'string') {
+		return require(path.join(process.cwd(), config));
+	}
+
+	// Default location is provided by "jasmine init"
+	return require(path.join(process.cwd() + '/spec/support', 'jasmine.json'));
 }
