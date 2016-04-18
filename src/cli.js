@@ -3,18 +3,40 @@ import commander from 'commander';
 
 export function run(args) {
 
-    commander
-        .option('-c, --jasmine-config <path>')
-        .option('-c, --package-path <path>')
-        .parse(process.argv)
+	commander
+	.option('--jasmine-config <path>')
+	.option('--package-path <path>')
+	.option('--coverage', 'add a coverage report')
+	.option('--coverage-dir <dir>')
+	.option('--coverage-reporter <reporter>')
+	.option('--coverage-files <glob>', 'A repeatable value where each one is a glob that determines which files to match', collect, [])
+	.parse(process.argv)
 
-    let config = {
-        jasmineConfig: commander.jasmineConfig,
-        packagePath: commander.packagePath
-    }
+	const config = {
+		jasmineConfig: commander.jasmineConfig,
+		packagePath: commander.packagePath
+	};
 
-    jsApi.runTests(config, function(err) {
-        console.error(err);
-        process.exit(1);
-    });
+	if (commander.coverage) {
+		config.coverage = {};
+		if (commander.coverageDir) {
+			config.coverage.dir = commander.coverageDir;
+		}
+		if (commander.coverageReporter) {
+			config.coverage.reporter = commander.coverageReporter;
+		}
+		if (commander.coverageFiles) {
+			config.coverage.files = commander.coverageFiles;
+		}
+	}
+
+	jsApi.runTests(config, function(err) {
+		console.error(err);
+		process.exit(1);
+	});
+}
+
+function collect(val, list) {
+	list.push(val);
+	return list;
 }

@@ -2,6 +2,7 @@ import glob from "glob";
 import fs from "fs";
 import jspm from "jspm";
 import path from "path";
+import minimatch from 'minimatch';
 import Jasmine from "jasmine";
 import { Instrumenter, Report, Collector } from 'istanbul';
 import { remap, writeReport } from "remap-istanbul";
@@ -40,16 +41,38 @@ export function runTests(opts, errCallback = function() {}) {
 	const Instrument = new Instrumenter();
 	const systemInstantiate = SystemJS.instantiate;
 
+	const jasmineConfig = getJasmineConfig(opts.jasmineConfig)
+	const specDir = jasmineConfig.spec_dir;
+	const specFiles = jasmineConfig.spec_files;
+	delete jasmineConfig.spec_files;
+	const helpers = jasmineConfig.helpers;
+	delete jasmineConfig.helpers;
+
 	try {
 		if ( opts.coverage ) {
-			opts.coverage.dir = opts.coverage.dir || './coverage';
+			opts.coverage.dir = opts.coverage.dir || 'coverage';
 			const coverageFiles = {};
-			getGlobArray(
-				opts.coverage.files,
-				[ 'src/**/*.js' ]
-			).forEach( pattern => {
-				glob.sync(path.join(process.cwd(),pattern))
-					.forEach(file => coverageFiles[file] = 1)
+			const coverageFilesGlobs = opts.coverage.files || [];
+			if (!Array.isArray(coverageFilesGlobs) || coverageFilesGlobs.length === 0) {
+				console.log(`Not capturing coverage because opts.coverage.files is not a valid array of globs. Also try the '--coverage-files <glob>' command line opt`);
+			}
+			opts.coverage.files.forEach( pattern => {
+				glob.sync(path.join(process.cwd(), pattern))
+				.forEach(file => {
+					let isSpec = false;
+					specFiles.forEach(specFileGlob => {
+						isSpec = isSpec || minimatch(file, specFileGlob);
+					});
+
+					let isHelper = false;
+					helpers.forEach(helperGlob => {
+						isHelper = isHelper || minimatch(file, helperGlob);
+					});
+
+					if (!isSpec && !isHelper) {
+						coverageFiles[file] = 1;
+					}
+				});
 			});
 			SystemJS.instantiate = (load) => {
 				const normalizedAddress = getOSFilePath(load.address)
@@ -75,13 +98,6 @@ export function runTests(opts, errCallback = function() {}) {
 				return systemInstantiate.call(SystemJS, load);
 			}
 		}
-
-		const jasmineConfig = getJasmineConfig(opts.jasmineConfig)
-		const specDir = jasmineConfig.spec_dir;
-		const specFiles = jasmineConfig.spec_files;
-		delete jasmineConfig.spec_files;
-		const helpers = jasmineConfig.helpers;
-		delete jasmineConfig.helpers;
 
 		jasmine.loadConfig(jasmineConfig);
 
@@ -143,16 +159,13 @@ function importTestFiles(SystemJS, jasmine, specDir, specFiles, coverage, errCal
 						    		// avoid misalignment with jasmine's output
 						    		console.log('')
 						    		const collector = remap(__coverage__)
-						    		let report
-						    		if (coverage.reporter) {
-								    	report = Report.create(
-								    		coverage.reporter,
-								    		{
-												dir: coverage.dir
-											}
-										);
-										report.writeReport(collector, true);
-									}
+									let report = Report.create(
+										(coverage.reporter || 'html'),
+										{
+											dir: coverage.dir
+										}
+									);
+									report.writeReport(collector, true);
 									report = Report.create('text', {maxCols: 70});
 									report.writeReport(collector, true);
 									report = Report.create('text-summary');
@@ -192,15 +205,7 @@ function getOSFilePath(filename) {
 	// might need to be more robust in the future
 	return filename.replace( 'file://', '' )
 }
-function getGlobArray(glob, defaultGlob) {
-	if (!glob) {
-		return defaultGlob;
-	}
-	if (typeof glob === 'string') {
-		glob = [ glob ]
-	}
-	return glob
-}
+
 function getJasmineConfig(config) {
 	if (typeof config === 'object') {
 		return config;

@@ -43,6 +43,7 @@
     "glob": "^7.0.3",
     "inline-source-map-comment": "^1.0.5",
     "istanbul": "^0.4.3",
+    "minimatch": "^3.0.0",
     "remap-istanbul": "^0.6.3"
   }
 }
