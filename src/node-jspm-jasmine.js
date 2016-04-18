@@ -3,29 +3,33 @@ import fs from "fs";
 import jspm from "jspm";
 import path from "path";
 import Jasmine from "jasmine";
+import { Instrumenter, Report, Collector } from 'istanbul';
+import { remap, writeReport } from "remap-istanbul";
+import inlineSourceMap from "inline-source-map-comment";
+
+const coveredModules = [];
+const tranpiledFileSuffix = '__node-jspm-jasmine-transpiled__.js';
 
 export function runTests(opts, errCallback = function() {}) {
 
+	global.System = SystemJS; // For middleware
+
 	let packagePath = '.';
-
 	try {
-
-		if ( typeof opts.packagePath === 'string' ) {
+		if (typeof opts.packagePath === 'string') {
+			// have to do another pr to refactor this with existsSync(path)
+			// and remove these try catch blocks...
 			require(path.join(process.cwd(), opts.packagePath, 'package.json'));
 			packagePath = path.join(process.cwd(), opts.packagePath);
 		}
-
 	} catch(ex) {
-
 		let errorMessage = ex.toString();
-
 		if (ex.code === 'MODULE_NOT_FOUND' &&
 			errorMessage.indexOf('package.json') > -1) {
 			errorMessage =
 				'Could not find package.json at custom path: ' +
 				path.join(process.cwd(), opts.packagePath, 'package.json');
-	}
-
+		}
 		errCallback(new Error(errorMessage));
 	}
 
@@ -33,13 +37,46 @@ export function runTests(opts, errCallback = function() {}) {
 
 	const jasmine = new Jasmine();
 	const SystemJS = new jspm.Loader();
-	// For middleware
-	global.System = SystemJS;
+	const Instrument = new Instrumenter();
+	const systemInstantiate = SystemJS.instantiate;
 
 	try {
+		if ( opts.coverage ) {
+			opts.coverage.dir = opts.coverage.dir || './coverage';
+			const coverageFiles = {};
+			getGlobArray(
+				opts.coverage.files,
+				[ 'src/**/*.js' ]
+			).forEach( pattern => {
+				glob.sync(path.join(process.cwd(),pattern))
+					.forEach(file => coverageFiles[file] = 1)
+			});
+			SystemJS.instantiate = (load) => {
+				const normalizedAddress = getOSFilePath(load.address)
+				if (coverageFiles[normalizedAddress]) {
+					load.address = normalizedAddress;
+					coveredModules.push(load.address);
+					if ( load.metadata.sourceMap ) {
+						delete load.metadata.sourceMap.sourcesContent;
+						load.metadata.sourceMap.file = load.address + tranpiledFileSuffix
+						load.metadata.sourceMap.sources = load.metadata.sourceMap.sources.map(
+							filename => getOSFilePath(filename)
+						)
+						fs.writeFileSync(
+							load.address + tranpiledFileSuffix,
+							load.source  + '\n' + inlineSourceMap(load.metadata.sourceMap)
+						)
+					}
+					load.source = Instrument.instrumentSync(
+						load.source,
+						load.address + tranpiledFileSuffix
+					)
+				}
+				return systemInstantiate.call(SystemJS, load);
+			}
+		}
 
 		const jasmineConfig = getJasmineConfig(opts.jasmineConfig)
-
 		const specDir = jasmineConfig.spec_dir;
 		const specFiles = jasmineConfig.spec_files;
 		delete jasmineConfig.spec_files;
@@ -48,11 +85,19 @@ export function runTests(opts, errCallback = function() {}) {
 
 		jasmine.loadConfig(jasmineConfig);
 
-		const importTheseTestFiles = importTestFiles.bind(null, SystemJS, jasmine, specDir, specFiles, errCallback);
+		// We should maybe start passing in a the config object...
+		const importTheseTestFiles = importTestFiles.bind(
+			null,
+			SystemJS,
+			jasmine,
+			specDir,
+			specFiles,
+			opts.coverage,
+			errCallback
+		);
 
 		// helpers
 		let numHelperGlobsLeft = helpers && helpers.length ? helpers.length : 0;
-
 		if (numHelperGlobsLeft === 0) {
 			importTheseTestFiles();
 		} else {
@@ -61,7 +106,6 @@ export function runTests(opts, errCallback = function() {}) {
 					if (err) {
 						throw err;
 					}
-
 					Promise
 					.all(files.map(file => SystemJS.import(file)))
 					.then(() => {
@@ -73,17 +117,15 @@ export function runTests(opts, errCallback = function() {}) {
 				});
 			});
 		}
-
 	} catch(ex) {
+		removeTempFiles();
 		errCallback(new Error(`Jasmine or Jspm may not be properly configured -- '${ex.toString()}'`));
 	}
 }
 
-function importTestFiles(SystemJS, jasmine, specDir, specFiles, errCallback) {
+function importTestFiles(SystemJS, jasmine, specDir, specFiles, coverage, errCallback) {
 	let numSpecGlobsLeft = specFiles.length || 0;
-
 	if (numSpecGlobsLeft === 0) {
-		//nothing to do anyways??
 		jasmine.execute();
 	} else {
 		specFiles.forEach(globPattern => {
@@ -91,11 +133,35 @@ function importTestFiles(SystemJS, jasmine, specDir, specFiles, errCallback) {
 				if (err) {
 					throw err;
 				}
-
 				Promise
 				.all(files.map(file => SystemJS.import(file)))
 				.then(() => {
 					if (--numSpecGlobsLeft === 0) {
+						jasmine.env.addReporter({
+						    jasmineDone: function () {
+						    	if (coverage) {
+						    		// avoid misalignment with jasmine's output
+						    		console.log('')
+						    		const collector = remap(__coverage__)
+						    		let report
+						    		if (coverage.reporter) {
+								    	report = Report.create(
+								    		coverage.reporter,
+								    		{
+												dir: coverage.dir
+											}
+										);
+										report.writeReport(collector, true);
+									}
+									report = Report.create('text', {maxCols: 70});
+									report.writeReport(collector, true);
+									report = Report.create('text-summary');
+									report.writeReport(collector, true);
+									// remove temporary "transpiled" files
+									removeTempFiles();
+								}
+						    }
+						});
 						jasmine.execute();
 					}
 				})
@@ -105,15 +171,43 @@ function importTestFiles(SystemJS, jasmine, specDir, specFiles, errCallback) {
 	}
 }
 
+function removeTempFiles() {
+	coveredModules.forEach(filename => {
+		fs.unlink(
+			filename + tranpiledFileSuffix,
+			removeTempFileCallback
+		);
+	});
+}
+function removeTempFileCallback(err) {
+	if ( err ) {
+		throw new Error(
+			'Failed to remove temporary ' +
+			'file "' + filename + '". ' +
+			'Please remove it manually.'
+		);
+	}
+}
+function getOSFilePath(filename) {
+	// might need to be more robust in the future
+	return filename.replace( 'file://', '' )
+}
+function getGlobArray(glob, defaultGlob) {
+	if (!glob) {
+		return defaultGlob;
+	}
+	if (typeof glob === 'string') {
+		glob = [ glob ]
+	}
+	return glob
+}
 function getJasmineConfig(config) {
 	if (typeof config === 'object') {
 		return config;
 	}
-
 	if (typeof config === 'string') {
 		return require(path.join(process.cwd(), config));
 	}
-
 	// Default location is provided by "jasmine init"
 	return require(path.join(process.cwd() + '/spec/support', 'jasmine.json'));
 }

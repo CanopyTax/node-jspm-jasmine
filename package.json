@@ -39,7 +39,10 @@
     "registry": "https://registry.npmjs.org"
   },
   "dependencies": {
+    "commander": "^2.9.0",
     "glob": "^7.0.3",
-    "commander": "^2.9.0"
+    "inline-source-map-comment": "^1.0.5",
+    "istanbul": "^0.4.3",
+    "remap-istanbul": "^0.6.3"
   }
 }
