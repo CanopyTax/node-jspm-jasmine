@@ -87,7 +87,7 @@ export function runTests(opts, errCallback = function() {}) {
 				});
 			});
 			SystemJS.instantiate = (load) => {
-				const normalizedAddress = getOSFilePath(load.address)
+				let normalizedAddress = getOSFilePath(load.address)
 				if (coverageFiles[normalizedAddress]) {
 					load.address = normalizedAddress;
 					coveredModules.push(load.address);
@@ -101,11 +101,9 @@ export function runTests(opts, errCallback = function() {}) {
 							load.address + tranpiledFileSuffix,
 							load.source  + '\n' + inlineSourceMap(load.metadata.sourceMap)
 						)
+						normalizedAddress += tranpiledFileSuffix;
 					}
-					load.source = Instrument.instrumentSync(
-						load.source,
-						load.address + tranpiledFileSuffix
-					)
+					load.source = Instrument.instrumentSync(load.source, normalizedAddress)
 				}
 				return systemInstantiate.call(SystemJS, load);
 			}
