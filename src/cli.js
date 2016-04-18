@@ -10,6 +10,7 @@ export function run(args) {
 	.option('--coverage-dir <dir>')
 	.option('--coverage-reporter <reporter>')
 	.option('--coverage-files <glob>', 'A repeatable value where each one is a glob that determines which files to match', collect, [])
+	.option('--preserve-coverage-dir')
 	.parse(process.argv)
 
 	const config = {
@@ -28,6 +29,7 @@ export function run(args) {
 		if (commander.coverageFiles) {
 			config.coverage.files = commander.coverageFiles;
 		}
+		config.coverage.preserveDir = commander.preserveCoverageDir;
 	}
 
 	jsApi.runTests(config, function(err) {

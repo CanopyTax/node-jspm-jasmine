@@ -1,6 +1,7 @@
 import glob from "glob";
 import fs from "fs";
 import jspm from "jspm";
+import rimraf from 'rimraf';
 import path from "path";
 import minimatch from 'minimatch';
 import Jasmine from "jasmine";
@@ -51,6 +52,17 @@ export function runTests(opts, errCallback = function() {}) {
 	try {
 		if ( opts.coverage ) {
 			opts.coverage.dir = opts.coverage.dir || 'coverage';
+
+			if (!opts.coverage.preserveDir) {
+				// try our best not to screw over people who accidentally use this option incorrectly
+				if (opts.coverage.dir === '.') {
+					console.log('The coverage directory should not be ".", so that it can be deleted and recreated to avoid stale coverage reports');
+				} else {
+					console.log(`Deleting coverage directory "${opts.coverage.dir}" to avoid stale coverage data. Use the --preserve-coverage-dir or opts.coverage.preserveDir options if you want to turn off this behavior`);
+					rimraf.sync(path.join(process.cwd(), opts.coverage.dir));
+				}
+			}
+
 			const coverageFiles = {};
 			const coverageFilesGlobs = opts.coverage.files || [];
 			if (!Array.isArray(coverageFilesGlobs) || coverageFilesGlobs.length === 0) {
