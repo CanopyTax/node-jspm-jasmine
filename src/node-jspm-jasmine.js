@@ -53,14 +53,8 @@ export function runTests(opts, errCallback = function() {}) {
 		if ( opts.coverage ) {
 			opts.coverage.dir = opts.coverage.dir || 'coverage';
 
-			if (!opts.coverage.preserveDir) {
-				// try our best not to screw over people who accidentally use this option incorrectly
-				if (opts.coverage.dir === '.') {
-					console.log('The coverage directory should not be ".", so that it can be deleted and recreated to avoid stale coverage reports');
-				} else {
-					console.log(`Deleting coverage directory "${opts.coverage.dir}" to avoid stale coverage data. Use the --preserve-coverage-dir or opts.coverage.preserveDir options if you want to turn off this behavior`);
-					rimraf.sync(path.join(process.cwd(), opts.coverage.dir));
-				}
+			if (opts.coverage.cleanDir) {
+				rimraf.sync(path.join(process.cwd(), opts.coverage.dir));
 			}
 
 			const coverageFiles = {};
