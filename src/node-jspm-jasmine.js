@@ -58,6 +58,7 @@ export function runTests(opts, errCallback = function() {}) {
 			}
 
 			const coverageFiles = {};
+			let atLeastOneCoverageFile = false;
 			const coverageFilesGlobs = opts.coverage.files || [];
 			if (!Array.isArray(coverageFilesGlobs) || coverageFilesGlobs.length === 0) {
 				console.log(`Not capturing coverage because opts.coverage.files is not a valid array of globs. Also try the '--coverage-files <glob>' command line opt`);
@@ -77,9 +78,16 @@ export function runTests(opts, errCallback = function() {}) {
 
 					if (!isSpec && !isHelper) {
 						coverageFiles[file] = 1;
+						atLeastOneCoverageFile = true;
 					}
 				});
 			});
+
+			if (!atLeastOneCoverageFile) {
+				console.log(`No coverage will be reported, since no files matched the patterns ${opts.coverage.files}`);
+				console.log(`Be sure to provide opts.coverage.files if using the JS API, or --coverage-files <pattern> if using the CLI. Also, be sure to put the pattern in quotes to avoid the glob being expanded before jspmjasmine executes.`);
+			}
+
 			SystemJS.instantiate = (load) => {
 				let normalizedAddress = getOSFilePath(load.address)
 				if (coverageFiles[normalizedAddress]) {
@@ -162,20 +170,28 @@ function importTestFiles(SystemJS, jasmine, specDir, specFiles, coverage, errCal
 						    	if (coverage) {
 						    		// avoid misalignment with jasmine's output
 						    		console.log('')
-						    		const collector = remap(__coverage__)
-									let report = Report.create(
-										(coverage.reporter || 'html'),
-										{
-											dir: coverage.dir
+									try {
+										if (typeof __coverage__ === 'undefined') {
+											console.log(`No coverage was collected for files matching globs ${coverage.files}`);
+										} else {
+											const collector = remap(__coverage__)
+											let report = Report.create(
+												(coverage.reporter || 'html'),
+												{
+													dir: coverage.dir
+												}
+											);
+											report.writeReport(collector, true);
+											report = Report.create('text', {maxCols: 70});
+											report.writeReport(collector, true);
+											report = Report.create('text-summary');
+											report.writeReport(collector, true);
+											// remove temporary "transpiled" files
+											removeTempFiles();
 										}
-									);
-									report.writeReport(collector, true);
-									report = Report.create('text', {maxCols: 70});
-									report.writeReport(collector, true);
-									report = Report.create('text-summary');
-									report.writeReport(collector, true);
-									// remove temporary "transpiled" files
-									removeTempFiles();
+									} catch (ex) {
+										errCallback(ex);
+									}
 								}
 						    }
 						});
