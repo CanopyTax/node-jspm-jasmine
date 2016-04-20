@@ -28,16 +28,33 @@ node-jspm-jasmine exposes a cli that is accessible through the `jspmjasmine` com
 * Note: node-jspm-jasmine will expose the `System` object to the `global`, for convenience.
 
 ##### Options:
-Custom path to jasmine.json config file:
+Provide a custom jasmine.json config file:<br />
+`jspmjasmine --jasmine-config "RELATIVE/PATH/TO/jasmine.json"`<br />
+<sub>*Defaults to path where `jspmjasmine` is being executed + `/spec/support/jasmine.json`*</sub>
 
-`jspmjasmine --jasmine-config
-"PATH/TO/JASMINE/JSON/RELATIVE/TO/CWD/config.json"`
-* Note: `jasmine-config` defaults to path where `jspmjasmine` is being executed + `/spec/support/jasmine.json`.
+Provide a custom directory to package.json:<br />
+`jspmjasmine --package-path "RELATIVE/PATH/TO/PACKAGE/JSON/DIRECTORY/"`<br />
+<sub>*Defaults to path where `jspmjasmine` is being executed.*</sub>
 
-Custom path to package.json config file:
+Add a coverage report:<br />
+`jspmjasmine --coverage`<br />
+<sub>*Defaults to undefined (no coverage).*</sub>
 
-`jspmjasmine --package-path "PATH/TO/PACKAGE/JSON/RELATIVE/TO/CWD/"`
-* Note: `package-path` defaults to path where `jspmjasmine` is being executed.
+Provide a custom directory for storing coverage reports:<br />
+`jspmjasmine --coverage-dir "RELATIVE/PATH/TO/COVERAGE/DIRECTORY/"`<br />
+<sub>*Defaults to "./coverage/".*</sub>
+
+Provide a custom type for coverage reports:<br />
+`jspmjasmine --coverage-reporter "TYPE"`<br />
+<sub>*Defaults to "html" (all report types shipped with Istanbul are supported).*</sub>
+
+Provide files to be instrumented by Istanbul coverage:<br />
+`jspmjasmine --coverage-files "RELATIVE/GLOB/PATH/TO/FILES/**/*.js"`<br />
+<sub>*Defaults empty array (no files).*</sub>
+
+Allow `node-jspm-jasmine` to empty coverage directory before creating a new report:<br />
+`jspmjasmine --clean-coverage-dir`<br />
+<sub>*Defaults to undefined (no clean up).*</sub>
 
 ## JS API
 node-jspm-jasmine exports named exports which are to be used as a js library. Example:
@@ -52,27 +69,41 @@ This will run your jasmine tests, loading all the tests with JSPM instead of nod
 ##### Options:
 ```js
 runTests({
-    // Provide a custom path to jasmine.json config file.
-    // Defaults to path where the script is being
-    // executed + '/spec/support/jasmine.json'.
-    jasmineConfig: "PATH/TO/JASMINE/JSON/RELATIVE/TO/CWD/config.json",
 
-    // Provide a custom path to package.json config file.
-    // Defaults to path where the script is being executed.
-    packagePath: "PATH/TO/PACKAGE/JSON/RELATIVE/TO/CWD/"
-})
-```
+  // Provide a custom jasmine.json config file
+  // Defaults to path where `jspmjasmine` is being executed + `/spec/support/jasmine.json
+  jasmineConfig: "RELATIVE/PATH/TO/jasmine.json",
+  // Alternatively, you can pass the jasmine config object directly.
+  // jasmineConfig: {
+    // "spec_dir": "src/test/specs",
+    // "spec_files": ["**/*.js"],
+    // "helpers": []
+  // },
 
-Alternatively, you can pass the jasmine config object directly.
-```js
-runTests({
-    // Provide a custom jasmine configuration without a jasmine.json.
-    jasmineConfig: {
-        "spec_dir": "src/test/specs",
-        "spec_files": ["**/*.js"],
-        "helpers": []
-    },
-    packagePath: "PATH/TO/PACKAGE/JSON/RELATIVE/TO/CWD/"
+  // Provide a custom directory to package.json
+  // Defaults to path where `jspmjasmine` is being executed
+  packagePath: "RELATIVE/PATH/TO/PACKAGE/JSON/DIRECTORY/",
+
+  // Add a coverage report
+  // Defaults to undefined
+  coverage: {
+
+    // Provide a custom directory for storing coverage reports
+    // Defaults to "./coverage/"
+    dir: "RELATIVE/PATH/TO/COVERAGE/DIRECTORY/",
+
+    // Provide a custom type for coverage reports
+    // Defaults to "html" (all report types shipped with Istanbul are supported)
+    reporter: "TYPE",
+
+    // Provide files to be instrumented by Istanbul coverage
+    // Defaults empty array (no files)
+    files: "RELATIVE/GLOB/PATH/TO/FILES/**/*.js",
+
+    // Allow `node-jspm-jasmine` to empty coverage directory before creating a new report
+    // Defaults to undefined (no clean up)
+    cleanDir: true
+  }
 })
 ```
 
