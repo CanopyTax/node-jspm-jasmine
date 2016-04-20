@@ -50,6 +50,7 @@ Provide a custom type for coverage reports:<br />
 
 Provide files to be instrumented by Istanbul coverage:<br />
 `jspmjasmine --coverage-files "RELATIVE/GLOB/PATH/TO/FILES/**/*.js"`<br />
+*Important:* Be sure to put globs in quotes to prevent the OS from expanding them before node-jspm-jasmine gets them. <br />
 <sub>*Defaults empty array (no files).*</sub>
 
 Allow `node-jspm-jasmine` to empty coverage directory before creating a new report:<br />
