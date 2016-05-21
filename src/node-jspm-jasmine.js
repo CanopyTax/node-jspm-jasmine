@@ -8,10 +8,23 @@ import Jasmine from "jasmine";
 import { Instrumenter, Report } from 'istanbul';
 import { remap } from "remap-istanbul";
 import inlineSourceMap from "inline-source-map-comment";
+import chalk from 'chalk';
+
+import Timer from './timer.js';
 
 export function runTests(opts, errCallback = function() {}) {
+	const timer = Timer.start();
 
-	global.System = SystemJS; // For middleware
+	const originalErrCallback = errCallback;
+	errCallback = function() {
+		const testTime = Date.now() - testStartTime;
+
+		timer.finish();
+
+		return originalErrCallback.apply(this, arguments);
+	}
+
+	global.System = global.SystemJS = SystemJS; // For middleware
 
 	let packagePath = '.';
 	try {
@@ -171,7 +184,8 @@ export function runTests(opts, errCallback = function() {}) {
 			specDir,
 			specFiles,
 			opts.coverage,
-			errCallback
+			errCallback,
+			timer
 		);
 
 		// helpers
@@ -210,31 +224,28 @@ export function runTests(opts, errCallback = function() {}) {
 	}
 }
 
-function importTestFiles(SystemJS, jasmine, specDir, specFiles, coverage, errCallback) {
+function importTestFiles(SystemJS, jasmine, specDir, specFiles, coverage, errCallback, timer) {
 
 	if (coverage) {
 		// the "onComplete" hook to prevent jasmine's self-righteous exit
 		jasmine.onComplete(function (passed) {
 			// avoid misalignment with jasmine's output
 			console.log('');
+
+			console.log(chalk[passed ? 'green' : 'red'](`Tests have ${passed ? 'passed' : 'failed'}`));
+			console.log(`Calculating coverage for all untested files`);
 			// import the rest of the modules not already imported (evaluated)
 			// as dependencies of specs
 			Promise.all(Object.keys(coverage.coverageFiles).map(function (file) {
 				return SystemJS.import(path.join(process.cwd(), file));
 			})).then(function () {
+				const coverageReporter = coverageReporter || 'html';
 				if (typeof __coverage__ === 'undefined') {
 					console.log("No coverage was collected for files matching globs " + coverage.files);
 				} else {
 					try {
 						const collector = remap(__coverage__)
-						let report = Report.create(
-							(coverage.reporter || 'html'),
-							{
-								dir: coverage.dir
-							}
-						);
-						report.writeReport(collector, true);
-						report = Report.create('text', {maxCols: 70});
+						let report = Report.create(coverageReporter, {dir: coverage.dir});
 						report.writeReport(collector, true);
 						report = Report.create('text-summary');
 						report.writeReport(collector, true);
@@ -244,6 +255,12 @@ function importTestFiles(SystemJS, jasmine, specDir, specFiles, coverage, errCal
 				}
 				// remove temporary directory
 				rimraf.sync(coverage.tempDirectory);
+
+				if (coverageReporter === 'html') {
+					console.log(`\nCode coverage html report is in directory '${coverage.dir}'`);
+				}
+				timer.finish();
+
 				// this is the exit strategy inside Jasmine, it takes care
 				// of cross platform exit bugs
 				jasmine.exit(0, process.platform, process.version, process.exit, jasmine.exit);
