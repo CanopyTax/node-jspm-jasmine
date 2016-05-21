@@ -263,7 +263,8 @@ function importTestFiles(SystemJS, jasmine, specDir, specFiles, coverage, errCal
 
 				// this is the exit strategy inside Jasmine, it takes care
 				// of cross platform exit bugs
-				jasmine.exit(0, process.platform, process.version, process.exit, jasmine.exit);
+				const exitCode = passed ? 0 : 2;
+				jasmine.exit(exitCode, process.platform, process.version, process.exit, jasmine.exit);
 			}).catch((ex) => {
 				// remove temporary directory
 				rimraf.sync(coverage.tempDirectory);
