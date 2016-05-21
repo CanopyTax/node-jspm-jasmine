@@ -17,8 +17,6 @@ export function runTests(opts, errCallback = function() {}) {
 
 	const originalErrCallback = errCallback;
 	errCallback = function() {
-		const testTime = Date.now() - testStartTime;
-
 		timer.finish();
 
 		return originalErrCallback.apply(this, arguments);
