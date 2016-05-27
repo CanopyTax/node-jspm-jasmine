@@ -11,13 +11,18 @@ import inlineSourceMap from "inline-source-map-comment";
 import chalk from 'chalk';
 
 import Timer from './timer.js';
+import { isWatching, initWatcher, watchFile, finishedTestRun as notifyWatcherFinishedTestRun } from './watcher.js';
 
 export function runTests(opts, errCallback = function() {}) {
+	opts.watchFiles = opts.watchFiles || [];
+	initWatcher(!!opts.watch || opts.watchFiles.length > 0, opts, errCallback);
+
 	const timer = Timer.start();
 
 	const originalErrCallback = errCallback;
 	errCallback = function() {
 		timer.finish();
+		notifyWatcherFinishedTestRun();
 
 		return originalErrCallback.apply(this, arguments);
 	}
@@ -43,19 +48,26 @@ export function runTests(opts, errCallback = function() {}) {
 		errCallback(new Error(errorMessage));
 	}
 
+	watchFile(packagePath);
+
 	jspm.setPackagePath(packagePath);
 
 	const jasmine = new Jasmine();
 	const SystemJS = new jspm.Loader();
 
 	const jasmineConfig = getJasmineConfig(opts.jasmineConfig)
+
 	const specDir = jasmineConfig.spec_dir || '';
 	const specFiles = jasmineConfig.spec_files;
 	delete jasmineConfig.spec_files;
 	const helpers = jasmineConfig.helpers;
 	delete jasmineConfig.helpers;
 
+	const watchFilesGlobs = opts.watchFiles || [];
+
 	try {
+		const systemInstantiate = SystemJS.instantiate;
+
 		if (opts.coverage) {
 			opts.coverage.dir = opts.coverage.dir || 'coverage';
 
@@ -72,7 +84,6 @@ export function runTests(opts, errCallback = function() {}) {
 			opts.coverage.files.forEach(pattern => {
 				glob.sync(path.join(process.cwd(), pattern))
 				.forEach(file => {
-
 					let isSpec = false;
 					specFiles.forEach(specFileGlob => {
 						isSpec = isSpec || minimatch(file, path.join(process.cwd(), specDir, specFileGlob));
@@ -98,10 +109,26 @@ export function runTests(opts, errCallback = function() {}) {
 
 			// create systemjs hook to allow Istanbul to instrument transpiled sources
 			const instrument = new Instrumenter();
-			const systemInstantiate = SystemJS.instantiate;
 			const tempDirectory = path.join(__dirname, '../no-source-map/');
 			// "instantiate" is the hook that provides the transpiled source
 			SystemJS.instantiate = function(load) {
+				// no need to slow things down for setting up the watcher files
+				setTimeout(() => {
+					const cwdIndex = load.address.indexOf(process.cwd());
+					const relativeFilepath = cwdIndex >= 0 ? load.address.substring(cwdIndex + process.cwd().length + 1) : load.address;
+					coverageFilesGlobs.forEach(glob => {
+						if (minimatch(relativeFilepath, glob)) {
+							watchFile(relativeFilepath);
+						}
+					});
+
+					watchFilesGlobs.forEach(glob => {
+						if (minimatch(relativeFilepath, glob)) {
+							watchFile(relativeFilepath);
+						}
+					});
+				});
+
 				try {
 					// create a unique key to store the sources of modules for the browser
 					const fileKey = getFileKey(getOSFilePath(load.address), process.cwd());
@@ -170,6 +197,22 @@ export function runTests(opts, errCallback = function() {}) {
 				rimraf.sync(tempDirectory)
 			}
 			fs.mkdirSync(tempDirectory)
+		} else {
+			SystemJS.instantiate = function(load) {
+				// no need to slow things down for setting up the watcher files
+				setTimeout(() => {
+					const cwdIndex = load.address.indexOf(process.cwd());
+					const relativeFilepath = cwdIndex >= 0 ? load.address.substring(cwdIndex + process.cwd().length + 1) : load.address;
+
+					watchFilesGlobs.forEach(glob => {
+						if (minimatch(relativeFilepath, glob)) {
+							watchFile(relativeFilepath);
+						}
+					});
+				});
+
+				return systemInstantiate.apply(this, arguments);
+			}
 		}
 
 		jasmine.loadConfig(jasmineConfig);
@@ -197,7 +240,10 @@ export function runTests(opts, errCallback = function() {}) {
 						throw err;
 					}
 					Promise
-					.all(files.map(file => SystemJS.import(file)))
+					.all(files.map(file => {
+						watchFile(file);
+						return SystemJS.import(file);
+					}))
 					.then(() => {
 						if (--numHelperGlobsLeft === 0) {
 							importTheseTestFiles();
@@ -224,17 +270,19 @@ export function runTests(opts, errCallback = function() {}) {
 
 function importTestFiles(SystemJS, jasmine, specDir, specFiles, coverage, errCallback, timer) {
 
-	if (coverage) {
-		// the "onComplete" hook to prevent jasmine's self-righteous exit
-		jasmine.onComplete(function (passed) {
-			// avoid misalignment with jasmine's output
-			console.log('');
+	// the "onComplete" hook to prevent jasmine's self-righteous exit
+	jasmine.onComplete(function (passed) {
+		// avoid misalignment with jasmine's output
+		console.log('');
 
-			console.log(chalk[passed ? 'green' : 'red'](`Tests have ${passed ? 'passed' : 'failed'}`));
+		console.log(chalk[passed ? 'green' : 'red'](`Tests have ${passed ? 'passed' : 'failed'}`));
+
+		if (coverage) {
 			console.log(`Calculating coverage for all untested files`);
 			// import the rest of the modules not already imported (evaluated)
 			// as dependencies of specs
 			Promise.all(Object.keys(coverage.coverageFiles).map(function (file) {
+				watchFile(file);
 				return SystemJS.import(path.join(process.cwd(), file));
 			})).then(function () {
 				const coverageReporter = coverageReporter || 'html';
@@ -258,21 +306,21 @@ function importTestFiles(SystemJS, jasmine, specDir, specFiles, coverage, errCal
 					console.log(`\nCode coverage html report is in directory '${coverage.dir}'`);
 				}
 				timer.finish();
-
-				// this is the exit strategy inside Jasmine, it takes care
-				// of cross platform exit bugs
-				const exitCode = passed ? 0 : 2;
-				jasmine.exit(exitCode, process.platform, process.version, process.exit, jasmine.exit);
+				finishTestRun(passed, jasmine);
 			}).catch((ex) => {
 				// remove temporary directory
 				rimraf.sync(coverage.tempDirectory);
-				errCallback(ex);
+
 				// this is the exit strategy inside Jasmine, it takes care
 				// of cross platform exit bugs
-				jasmine.exit(1, process.platform, process.version, process.exit, jasmine.exit);
+				const safeExit = () => jasmine.exit(1, process.platform, process.version, process.exit, jasmine.exit);
+				errCallback(ex, safeExit);
 			});
-		});
-	}
+		} else {
+			timer.finish();
+			finishTestRun(passed, jasmine);
+		}
+	});
 
 	let numSpecGlobsLeft = specFiles.length || 0;
 	if (numSpecGlobsLeft === 0) {
@@ -284,7 +332,10 @@ function importTestFiles(SystemJS, jasmine, specDir, specFiles, coverage, errCal
 					throw err;
 				}
 				Promise
-				.all(files.map(file => SystemJS.import(file)))
+				.all(files.map(file => {
+					watchFile(file);
+					return SystemJS.import(file);
+				}))
 				.then(() => {
 					if (--numSpecGlobsLeft === 0) {
 						jasmine.execute();
@@ -314,9 +365,32 @@ function getJasmineConfig(config) {
 	if (typeof config === 'object') {
 		return config;
 	}
+
+	let jasmineConfigLocation;
+
 	if (typeof config === 'string') {
-		return require(path.join(process.cwd(), config));
+		jasmineConfigLocation = path.join(process.cwd(), config);
+	} else {
+		// Default location is provided by "jasmine init"
+		jasmineConfigLocation = path.join(process.cwd() + '/spec/support', 'jasmine.json');
 	}
-	// Default location is provided by "jasmine init"
-	return require(path.join(process.cwd() + '/spec/support', 'jasmine.json'));
+	watchFile(jasmineConfigLocation);
+
+	/* We have to mutate the jasmine config before actually giving it to jasmine.
+	 * Not using the original config ensures that it isn't corrupted for subsequent
+	 * test runs.
+	 */
+	const originalJasmineConfig = require(jasmineConfigLocation);
+	return { ...originalJasmineConfig };
+}
+
+function finishTestRun(passed, jasmine) {
+	notifyWatcherFinishedTestRun();
+	if (!isWatching()) {
+		const exitCode = passed ? 0 : 2;
+
+		// this is the exit strategy inside Jasmine, it takes care
+		// of cross platform exit bugs
+		jasmine.exit(exitCode, process.platform, process.version, process.exit, jasmine.exit);
+	}
 }

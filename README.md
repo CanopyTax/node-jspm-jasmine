@@ -36,6 +36,17 @@ Provide a custom directory to package.json:<br />
 `jspmjasmine --package-path "RELATIVE/PATH/TO/PACKAGE/JSON/DIRECTORY/"`<br />
 <sub>*Defaults to path where `jspmjasmine` is being executed.*</sub>
 
+Set up a test watcher to automatically re-run tests when files change:<br />
+`jspmjasmine --watch`<br />
+`jspmjasmine -w`<br />
+<sub>*If omitted, defaults to just a single test run.<br />
+     *When present, it defaults to watching coverage files, helpers, jasmine.json, and spec files.</sub>
+
+Configure test watcher to re-run tests when specific files change:<br />
+`jspmjasmine --watch-files <glob-pattern>`<br />
+<sub>*You can provide more than one glob pattern by adding ``--watch-files <pattern>`` more than once<br />
+     *Note that if you use --watch-files that it is not necessary to also use --watch</sub>
+
 Add a coverage report:<br />
 `jspmjasmine --coverage`<br />
 <sub>*Defaults to undefined (no coverage).*</sub>
@@ -99,12 +110,22 @@ runTests({
 
     // Provide files to be instrumented by Istanbul coverage
     // Defaults empty array (no files)
+    // If also in watch mode, all coverage files will be automatically watched
     files: "RELATIVE/GLOB/PATH/TO/FILES/**/*.js",
 
     // Allow `node-jspm-jasmine` to empty coverage directory before creating a new report
     // Defaults to undefined (no clean up)
     cleanDir: true
-  }
+  },
+
+  // Rerun tests whenever files change. This option is presumed to be "on"
+  // if watchFiles is provided.
+  watch: true,
+
+  // This option allows you to watch specific files for changes when in watch mode
+  // An array of globs must be provided, where any file matching the glob patterns
+  // will be watched. Note that if you provide watchFiles that watch is assumed to be on.
+  watchFiles: ["src/**/*.js", "another-glob*.js"],
 })
 ```
 
