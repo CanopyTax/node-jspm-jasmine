@@ -26,7 +26,6 @@ export function initWatcher(_actuallyWatching, _opts, _errCallback) {
 	if (!watcher) {
 		watcher = chokidar.watch(opts.watchFiles);
 		watcher.on('change', debouncedRerunTests);
-		watcher.on('add', path => console.log(`watcher added ${path}`));
 		watcher.on('error', err => {
 			console.error(`Watcher failed with error ${err}`);
 		})
