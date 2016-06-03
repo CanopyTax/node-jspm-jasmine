@@ -11,6 +11,7 @@ import inlineSourceMap from "inline-source-map-comment";
 import chalk from 'chalk';
 
 import Timer from './timer.js';
+import * as Mocker from './mocker.js';
 import { isWatching, initWatcher, watchFile, finishedTestRun as notifyWatcherFinishedTestRun } from './watcher.js';
 
 export function runTests(opts, errCallback = function() {}) {
@@ -27,7 +28,14 @@ export function runTests(opts, errCallback = function() {}) {
 		return originalErrCallback.apply(this, arguments);
 	}
 
+	const SystemJS = new jspm.Loader();
+
 	global.System = global.SystemJS = SystemJS; // For middleware
+	/* helperPromises is intended to be used internally and externally inside of
+	 * helper files that need to do some asynchronous behavior before the rest
+	 * of the tests continue
+	 */
+	global.helperPromises = [];
 
 	let packagePath = '.';
 	try {
@@ -53,7 +61,6 @@ export function runTests(opts, errCallback = function() {}) {
 	jspm.setPackagePath(packagePath);
 
 	const jasmine = new Jasmine();
-	const SystemJS = new jspm.Loader();
 
 	const jasmineConfig = getJasmineConfig(opts.jasmineConfig)
 
@@ -109,7 +116,7 @@ export function runTests(opts, errCallback = function() {}) {
 
 			// create systemjs hook to allow Istanbul to instrument transpiled sources
 			const instrument = new Instrumenter();
-			const tempDirectory = path.join(__dirname, '../no-source-map/');
+			const tempDirectory = path.join(__dirname, '../transpiled-modules/');
 			// "instantiate" is the hook that provides the transpiled source
 			SystemJS.instantiate = function(load) {
 				// no need to slow things down for setting up the watcher files
@@ -137,6 +144,7 @@ export function runTests(opts, errCallback = function() {}) {
 						// put file's transpiled counterpart in temp folder
 						let filename;
 						let sourceMap = '';
+
 						// arrange sourcemaps
 						if (load.metadata.sourceMap) {
 							filename = path.join(tempDirectory, fileKey.replace(/\//g, '|'));
@@ -157,8 +165,7 @@ export function runTests(opts, errCallback = function() {}) {
 						} else {
 							// there is no source, but is transpiled, so we have no choice but to
 							// create a temp file that cannot be mapped back to the original
-							// I think that we should throw an error here, telling the user to figure out
-							// why it is that no sourcemap is being generated.
+							// The goal is to not die when there is not a source map
 							filename = path.join(tempDirectory, fileKey.replace(/\//g, '|'));
 						}
 
@@ -215,6 +222,14 @@ export function runTests(opts, errCallback = function() {}) {
 			}
 		}
 
+		/* Mocker.init overwrites System.instantiate again, and we want it 
+		 * to do that *after* we've already overwritten System.instantiate for
+		 * coverage purposes. That way, the mocker instantiate will run first,
+		 * followed by the coverage instantiate (this is important because 
+		 * when we run istanbul.instrumentSync() the source maps are definitely
+		 * lost).
+		 */
+		Mocker.init(opts, SystemJS);
 		jasmine.loadConfig(jasmineConfig);
 
 		// We should maybe start passing in a the config object...
@@ -244,6 +259,7 @@ export function runTests(opts, errCallback = function() {}) {
 						watchFile(file);
 						return SystemJS.import(file);
 					}))
+					.then(() => Promise.all(global.helperPromises))
 					.then(() => {
 						if (--numHelperGlobsLeft === 0) {
 							importTheseTestFiles();

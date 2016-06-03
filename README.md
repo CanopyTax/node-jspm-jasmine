@@ -1,5 +1,6 @@
 # node-jspm-jasmine
 Run jasmine tests on a jspm project, without karma. Keep your existing `jasmine.json`, `config.js`, and `jspm_packages`. The hope is that everything will just "work out of the box".
+Includes no-setup-required code coverage, mocking of modules, and even ability to mock `window`, `document`, and other globals.
 
 ## Quickstart
 Run the following commands, and you're all done.
@@ -129,30 +130,102 @@ runTests({
 })
 ```
 
-## Ignoring / mocking specific imports
-What you're about to read is nothing specific to node-jspm-jasmine, but I figured writing it down might save someone from sifting through hard-to-find docs for Jasmine and JSPM/SystemJS/es6-module-loader. In order to mock or ignore files, you should create a [jasmine helper file](http://jasmine.github.io/2.4/node.html#section-12) so that the mocking/ignoring is done before the tests are run. These files by default go into your `spec/helpers` directory, but that can be controlled in the jasmine.json file (note that the file patterns that you put into the `helpers` array will be relative to the `spec` directory itself, not the package's root directory nor the `spec/helpers` directory). Once you've got a helper file, use [System.registerDynamic](https://github.com/systemjs/systemjs/blob/master/docs/system-api.md#systemregisterdynamicname--deps-executingrequire-declare) to do one of the following:
+## mockModules
+In order to mock or ignore files, you'll need to call the `mockModules` function which is defined on the global by
+node-jspm-jasmine. You should do this before any of the test files are imported, so the best thing to do is
+to create a [jasmine helper file](http://jasmine.github.io/2.4/node.html#section-12)
+so that the mocking/ignoring is done before the tests are run. These files by default go into your `spec/helpers` directory,
+but that can be controlled in the jasmine.json file (note that the file patterns that you put into the `helpers` array will
+be relative to the `spec` directory itself, not the package's root directory nor the `spec/helpers` directory).
+Once you've got a helper file, use the function `mockModules` (provided by node-jspm-jasmine on the `global`)
 
-**Ignoring a dependency**
+#### API:
+`mockModules(moduleMap)`: `moduleMap` must be an object whose keys are un-normalized SystemJS dependency names,
+and whose values are an export object. The keys of export objects are the names of exports and the values are
+whatever you want to the exported value to be mocked as. In order to mock the default exported value of a module,
+simply create a `default` property inside of the export object.
+
+#### Example:
 ```js
-System.registerDynamic('name-of-ignored-dependency-just-like-it-is-imported', [], false, function() {});
+// spec/helpers/mock-modules.js
+mockModules({
+	// 'name-of-dep' will be mocked everywhere with just an empty object
+	'name-of-dep': {}, 
+
+	'name-of-another-dep': {
+		// default means that this will be mocked as the default export
+		default: {
+			foo: 'bar',
+		},
+
+		// a named export
+		namedExport: "string!",
+	},
+});
 ```
 
-**Mocking a dependency**
+## mockGlobals
+In order to mock globals, you can either just put variables onto the `global`, or you can use node-jspm-jasmine's
+`mockGlobals` function (which is exposed onto the `global` for you to use). The main benefit of using `mockGlobals`
+is that you can mock the `window` without causing all your dependencies to freak out and think they're
+in the browser, which is accomplished by controlling which files you mock the global variables for. It is highly
+recommended that you call `mockGlobals` from inside of a [jasmine helper file](http://jasmine.github.io/2.4/node.html#section-12),
+because node-jspm-jasmine needs to know what to mock and when before it runs any of the tests.
+
+#### API:
+`mockGlobals(glob, globalsMap)`:
+  - `glob` must either be a single string glob pattern, or an array of string glob patterns.
+    All files that match the glob pattern(s) will have access to the globals, and files that don't match will not have the
+    globals.
+  - `globalsMap` must be an object whose keys are the names of the globals to mock (must be valid javascript identifiers)
+    and whose values are whatever you want the mocked values to be.
+
+#### Example:
 ```js
-System.registerDynamic('name-of-mocked-dependency-just-like-it-is-imported', ['name-of-dependency-of-mocked-module'], false, function(require, exports, module) {
-  module.exports = {
-    foo: 'bar',
-  };
-});
+// spec/helpers/mock-global.js
+const whenToMock = [
+	'src/**/*.js',
+	'jspm_packages/**/single-spa-canopy.js',
+];
+
+const whatToMock = {
+	window: {
+		addEventListener() {},
+		removeEventListener() {},
+		document: {},
+		Raven: {
+			setExtraContext: jasmine.createSpy('Raven.setExtraContext'),
+		},
+	},
+
+	document: {
+		body: {
+			removeEventListener() {},
+		},
+	},
+
+	DOMParser: function() {
+		this.parseFromString = () => {};
+	},
+
+	bannerIsShowing() {
+		return true;
+	},
+}
+
+mockGlobals(whenToMock, whatToMock);
 ```
 
 ## Usage with Enzyme
 Although [Enzyme](http://airbnb.io/enzyme/) is not related to jspm or jasmine, the reason this project was started was to figure out an easy way to get a JSPM + React project to run tests with Jasmine and Enzyme. So here's how:
 
-- Create a jasmine helper file, as explained [above](https://github.com/CanopyTax/node-jspm-jasmine#ignoring--mocking-specific-imports)
+- Create a jasmine helper file, as explained [above](https://github.com/CanopyTax/node-jspm-jasmine#mockmodules)
 - In the jasmine helper file, put the following (this works for react 15.0, see [enzyme's docs for webpack](https://github.com/airbnb/enzyme/blob/master/docs/guides/webpack.md) to find which specific things you need to mock/ignore for other React versions).
 
 ```js
-System.registerDynamic("react/lib/ReactContext.js", [], false, function() {})
-System.registerDynamic("react/lib/ExecutionEnvironment.js", [], false, function() {})
+mockModules({
+	'react/lib/ReactContext.js', {},
+	'react/lib/ExecutionEnvironment.js': {},
+	'react/addons.js': {},
+});
 ```
