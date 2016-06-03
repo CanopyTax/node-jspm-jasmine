@@ -9,6 +9,7 @@ import { Instrumenter, Report } from 'istanbul';
 import { remap } from "remap-istanbul";
 import inlineSourceMap from "inline-source-map-comment";
 import chalk from 'chalk';
+import mkdirp from 'mkdirp';
 
 import Timer from './timer.js';
 import * as Mocker from './mocker.js';
@@ -141,13 +142,14 @@ export function runTests(opts, errCallback = function() {}) {
 					const fileKey = getFileKey(getOSFilePath(load.address), process.cwd());
 					// exclude the dependency modules (i.e. libraries) from instrumentation
 					if (coverageFiles[fileKey]) {
+						mkdirp.sync(tempDirectory + fileKey.substring(0, fileKey.lastIndexOf('/')));
 						// put file's transpiled counterpart in temp folder
 						let filename;
 						let sourceMap = '';
 
 						// arrange sourcemaps
 						if (load.metadata.sourceMap) {
-							filename = path.join(tempDirectory, fileKey.replace(/\//g, '|'));
+							filename = path.join(tempDirectory, fileKey);
 							// keeping sourcesContent causes duplicate reports
 							delete load.metadata.sourceMap.sourcesContent;
 							// this is the file being "instrumented"
@@ -166,7 +168,7 @@ export function runTests(opts, errCallback = function() {}) {
 							// there is no source, but is transpiled, so we have no choice but to
 							// create a temp file that cannot be mapped back to the original
 							// The goal is to not die when there is not a source map
-							filename = path.join(tempDirectory, fileKey.replace(/\//g, '|'));
+							filename = path.join(tempDirectory, fileKey);
 						}
 
 						if (filename !== getOSFilePath(load.address)) {
