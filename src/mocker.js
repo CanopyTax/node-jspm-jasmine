@@ -123,7 +123,7 @@ function customInstantiate(originalInstantiate, load) {
 				 */
 				const sourceMapConsumer = new SourceMapConsumer(load.metadata.sourceMap);
 				const sourceNode = SourceNode.fromStringWithSourceMap(load.source, sourceMapConsumer);
-				sourceNode.prepend(`(function() {\n${globalValue.varDeclarations}`);
+				sourceNode.prepend(`(function nodeJspmJasmineGlobalsMocked() {\n${globalValue.varDeclarations}`);
 				sourceNode.add(`\n})()`);
 				const newSource = sourceNode.toStringWithSourceMap();
 				load.source = newSource.code;
@@ -157,8 +157,8 @@ function customInstantiate(originalInstantiate, load) {
 function addGlobalsNoSourceMap(globalValue, load) {
 	/* The best we can do is to not create new lines because those hurt coverage reports a lot.
 	*/
-	const prefix = `(function nodeJspmJasmineGlobsMocked() {`;
-	const suffix = `})()`;
+	const prefix = `(function nodeJspmJasmineGlobalsMocked() {`;
+	const suffix = `\n})()`;
 
 	const lastOneLineComment = load.source.lastIndexOf('//');
 	if (lastOneLineComment > load.source.lastIndexOf('\n')) {
