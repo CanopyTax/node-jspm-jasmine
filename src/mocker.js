@@ -155,11 +155,19 @@ function customInstantiate(originalInstantiate, load) {
 }
 
 function addGlobalsNoSourceMap(globalValue, load) {
-	// The best we can do is to not create new lines because those hurt coverage reports a lot.
-	load.source = '(function() {'
-		+ globalValue.varDeclarations
-		+ load.source
-		+ '})()';
+	/* The best we can do is to not create new lines because those hurt coverage reports a lot.
+	*/
+	const prefix = `(function nodeJspmJasmineGlobsMocked() {`;
+	const suffix = `\n})()`;
+
+	const lastOneLineComment = load.source.lastIndexOf('//');
+	if (lastOneLineComment > load.source.lastIndexOf('\n')) {
+		// we need to end the iife on the line before the comment.
+		load.source = prefix + globalValue.varDeclarations + load.source.slice(0, lastOneLineComment) + suffix + load.source.slice(lastOneLineComment);
+	} else {
+		// we can end the iiefe after all the code.
+		load.source = prefix + globalValue.varDeclarations + load.source + '\n})()';
+	}
 }
 
 function getVarDeclarations({globalMap, id}) {
