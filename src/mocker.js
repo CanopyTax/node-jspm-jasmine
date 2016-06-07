@@ -158,7 +158,7 @@ function addGlobalsNoSourceMap(globalValue, load) {
 	/* The best we can do is to not create new lines because those hurt coverage reports a lot.
 	*/
 	const prefix = `(function nodeJspmJasmineGlobsMocked() {`;
-	const suffix = `\n})()`;
+	const suffix = `})()`;
 
 	const lastOneLineComment = load.source.lastIndexOf('//');
 	if (lastOneLineComment > load.source.lastIndexOf('\n')) {
