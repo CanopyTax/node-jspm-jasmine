@@ -87,7 +87,7 @@ export function runTests(opts, errCallback = function() {}) {
 			let atLeastOneCoverageFile = false;
 			const coverageFilesGlobs = opts.coverage.files || [];
 			if (!Array.isArray(coverageFilesGlobs) || coverageFilesGlobs.length === 0) {
-				console.log(`Not capturing coverage because opts.coverage.files is not a valid array of globs. Also try the '--coverage-files <glob>' command line opt`);
+				console.log(chalk.yellow(`Not capturing coverage because opts.coverage.files is not a valid array of globs. Also try the '--coverage-files <glob>' command line opt`));
 			}
 			opts.coverage.files.forEach(pattern => {
 				glob.sync(path.join(process.cwd(), pattern))
@@ -111,8 +111,8 @@ export function runTests(opts, errCallback = function() {}) {
 			});
 
 			if (!atLeastOneCoverageFile) {
-				console.log(`No coverage will be reported, since no files matched the patterns ${opts.coverage.files}`);
-				console.log(`Be sure to provide opts.coverage.files if using the JS API, or --coverage-files <pattern> if using the CLI. Also, be sure to put the pattern in quotes to avoid the glob being expanded before jspmjasmine executes.`);
+				console.log(chalk.yellow(`No coverage will be reported, since no files matched the patterns ${opts.coverage.files}`));
+				console.log(chalk.yellow(`Be sure to provide opts.coverage.files if using the JS API, or --coverage-files <pattern> if using the CLI. Also, be sure to put the pattern in quotes to avoid the glob being expanded before jspmjasmine executes.`));
 			}
 
 			// create systemjs hook to allow Istanbul to instrument transpiled sources
@@ -296,16 +296,17 @@ function importTestFiles(SystemJS, jasmine, specDir, specFiles, coverage, errCal
 		console.log(chalk[passed ? 'green' : 'red'](`Tests have ${passed ? 'passed' : 'failed'}`));
 
 		if (coverage) {
-			console.log(`Calculating coverage for all untested files`);
+			console.log(chalk.blue(`Calculating coverage for all untested files`));
 			// import the rest of the modules not already imported (evaluated)
 			// as dependencies of specs
 			Promise.all(Object.keys(coverage.coverageFiles).map(function (file) {
 				watchFile(file);
 				return SystemJS.import(path.join(process.cwd(), file));
 			})).then(function () {
+				let coverageSucceeded = false;
 				const coverageReporter = coverageReporter || 'html';
 				if (typeof __coverage__ === 'undefined') {
-					console.log("No coverage was collected for files matching globs " + coverage.files);
+					console.log(chalk.yellow("No coverage was collected for files matching globs " + coverage.files));
 				} else {
 					try {
 						const collector = remap(__coverage__)
@@ -313,15 +314,20 @@ function importTestFiles(SystemJS, jasmine, specDir, specFiles, coverage, errCal
 						report.writeReport(collector, true);
 						report = Report.create('text-summary');
 						report.writeReport(collector, true);
+						coverageSucceeded = true;
 					} catch (ex) {
-						errCallback(ex);
+						console.log(chalk.red(ex.stack ? ex.stack : ex));
 					}
 				}
 				// remove temporary directory
 				rimraf.sync(coverage.tempDirectory);
 
-				if (coverageReporter === 'html') {
-					console.log(`\nCode coverage html report is in directory '${coverage.dir}'`);
+				if (coverageSucceeded) {
+					if (coverageReporter === 'html') {
+						console.log(chalk.green(`\nCode coverage html report is in directory '${coverage.dir}'`));
+					}
+				} else {
+					console.log(chalk.yellow(`Failed to generate coverage because of an error that occurred within remap-istanbul or istanbul. Not failing tests because this isn't your fault`));
 				}
 				timer.finish();
 				finishTestRun(passed, jasmine);
@@ -332,7 +338,7 @@ function importTestFiles(SystemJS, jasmine, specDir, specFiles, coverage, errCal
 				// this is the exit strategy inside Jasmine, it takes care
 				// of cross platform exit bugs
 				const safeExit = () => jasmine.exit(1, process.platform, process.version, process.exit, jasmine.exit);
-				errCallback(ex, safeExit);
+				errCallback(ex, safeExit, "Error occurred when importing all coverage files that were not already imported when the tests ran");
 			});
 		} else {
 			timer.finish();

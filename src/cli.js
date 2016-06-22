@@ -1,6 +1,7 @@
 import * as jsApi from './node-jspm-jasmine.js';
 import commander from 'commander';
 import exit from 'exit';
+import chalk from 'chalk';
 
 import { isWatching } from './watcher.js';
 
@@ -39,8 +40,12 @@ export function run(args) {
 		config.coverage.cleanDir = commander.cleanCoverageDir;
 	}
 
-	jsApi.runTests(config, function(err, safeExit) {
-		console.error(err);
+	jsApi.runTests(config, function(err, safeExit, optionalMessage) {
+		console.log(chalk.red(err && err.stack ? err.stack : err));
+		if (optionalMessage) {
+			console.log('');
+			console.log(chalk.inverse(optionalMessage));
+		}
 		if (!isWatching()) {
 			if (safeExit) {
 				safeExit();
