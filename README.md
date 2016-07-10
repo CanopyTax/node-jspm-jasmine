@@ -1,5 +1,5 @@
 # node-jspm-jasmine
-Run jasmine tests on a jspm project, without karma. Keep your existing `jasmine.json`, `config.js`, and `jspm_packages`. The hope is that everything will just "work out of the box".
+Run jasmine tests on a jspm project, without karma and/or phantomjs. Keep your existing `jasmine.json`, `config.js`, and `jspm_packages`. The hope is that everything will just "work out of the box".
 Includes no-setup-required [code coverage](/README.md#--coverage), [mocking of modules](/README.md#mockmodules), and even ability to [mock `window`, `document`, and other globals](/README.md#mockglobals).
 
 ## Quickstart
