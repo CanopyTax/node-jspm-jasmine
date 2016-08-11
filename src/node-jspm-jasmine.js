@@ -304,7 +304,7 @@ function importTestFiles(SystemJS, jasmine, specDir, specFiles, coverage, errCal
 				return SystemJS.import(path.join(process.cwd(), file));
 			})).then(function () {
 				let coverageSucceeded = false;
-				const coverageReporter = coverageReporter || 'html';
+				const coverageReporter = coverage.reporter || 'html';
 				if (typeof __coverage__ === 'undefined') {
 					console.log(chalk.yellow("No coverage was collected for files matching globs " + coverage.files));
 				} else {
