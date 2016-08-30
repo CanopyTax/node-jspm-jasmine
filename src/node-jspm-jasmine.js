@@ -366,8 +366,10 @@ function importTestFiles(SystemJS, jasmine, specDir, specFiles, coverage, errCal
 					}
 				})
 				.catch((ex) => {
-					// remove temporary directory
-					rimraf.sync(coverage.tempDirectory);
+					if (coverage && coverage.tempDirectory) {
+						// remove temporary directory
+						rimraf.sync(coverage.tempDirectory);
+					}
 					errCallback(ex);
 				});
 			});
