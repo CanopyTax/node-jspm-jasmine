@@ -26,6 +26,9 @@ You'll probably want to add a `test` script to your package.json `scripts` with 
 ## CLI
 node-jspm-jasmine exposes a cli that is accessible through the `jspmjasmine` command. All [jasmine configuration options](http://jasmine.github.io/2.4/node.html#section-Configuration) will be respected, with all `helpers` and `spec_files` being loaded via JSPM instead of node's `require` function. Your tests will be run in an environment in which they will be able to call `describe`, `it`, `System.import`, etc.
 
+You can also run `jspmjasmineinspect` in order to debug the NodeJS tests inside of the chrome dev tools. `jspmjasmineinspect` is exactly the same as `jspmjasmine`, except it adds the `--inspect` flag to node so that you can debug
+it in chrome dev tools. See this [explanation of Node debugging](https://mattdesl.svbtle.com/debugging-nodejs-in-chrome-devtools).
+
 ### Options:
 
 #### `--coverage`
