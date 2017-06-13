@@ -108,11 +108,23 @@ jspmjasmine --package-path 'sub-project/'
 node-jspm-jasmine exports named exports which are to be used as a js library. Example:
 ```js
 import * as nodeJspmJasmine from 'node-jspm-jasmine';
-nodeJspmJasmine.runTests({});
+nodeJspmJasmine.
+({});
 ```
 
-#### runTests(opts)
-This will run your jasmine tests, loading all the tests with JSPM instead of node's `require`.
+#### runTests(opts, errBack)
+This will run your jasmine tests, loading all the tests with JSPM instead of node's `require`. The second argument `errBack` is a function that is called when the tests either succeed or fail. If the tests succeed, `errBack` will be called with a `null` first argument. If they fail, `errBack` will be called with a reason why the tests failed.
+
+Errback usage:
+```js
+runTests(opts, function(err) {
+  if (err) {
+    console.error(err);
+  } else {
+    console.log("tests passed");
+  }
+}
+```
 
 ##### Options:
 ```js
