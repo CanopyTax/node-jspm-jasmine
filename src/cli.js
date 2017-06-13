@@ -41,7 +41,9 @@ export function run(args) {
 	}
 
 	jsApi.runTests(config, function(err, safeExit, optionalMessage) {
-		console.log(chalk.red(err && err.stack ? err.stack : err));
+		if (err) {
+			console.log(chalk.red(err && err.stack ? err.stack : err));
+		}
 		if (optionalMessage) {
 			console.log('');
 			console.log(chalk.inverse(optionalMessage));

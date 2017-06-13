@@ -329,8 +329,7 @@ function importTestFiles(SystemJS, jasmine, specDir, specFiles, coverage, errCal
 				} else {
 					console.log(chalk.yellow(`Failed to generate coverage because of an error that occurred within remap-istanbul or istanbul. Not failing tests because this isn't your fault`));
 				}
-				timer.finish();
-				finishTestRun(passed, jasmine);
+				finishTestRun(passed, jasmine, errCallback);
 			}).catch((ex) => {
 				// remove temporary directory
 				rimraf.sync(coverage.tempDirectory);
@@ -341,8 +340,7 @@ function importTestFiles(SystemJS, jasmine, specDir, specFiles, coverage, errCal
 				errCallback(ex, safeExit, "Error occurred when importing all coverage files that were not already imported when the tests ran");
 			});
 		} else {
-			timer.finish();
-			finishTestRun(passed, jasmine);
+			finishTestRun(passed, jasmine, errCallback);
 		}
 	});
 
@@ -410,10 +408,13 @@ function getJasmineConfig(config) {
 	return { ...originalJasmineConfig };
 }
 
-function finishTestRun(passed, jasmine) {
+function finishTestRun(passed, jasmine, errCallback) {
 	notifyWatcherFinishedTestRun();
 	if (!isWatching()) {
 		const exitCode = passed ? 0 : 2;
+
+		const successResult = null;
+		errCallback(successResult);
 
 		// this is the exit strategy inside Jasmine, it takes care
 		// of cross platform exit bugs
