@@ -414,10 +414,11 @@ function finishTestRun(passed, jasmine, errCallback) {
 		const exitCode = passed ? 0 : 2;
 
 		const successResult = null;
-		errCallback(successResult);
-
+		
 		// this is the exit strategy inside Jasmine, it takes care
 		// of cross platform exit bugs
-		jasmine.exit(exitCode, process.platform, process.version, process.exit, jasmine.exit);
+		const safeExit = () => jasmine.exit(exitCode, process.platform, process.version, process.exit, jasmine.exit);
+
+		errCallback(successResult, safeExit);
 	}
 }
