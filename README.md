@@ -113,20 +113,11 @@ nodeJspmJasmine.
 ```
 
 #### runTests(opts, errBack)
-This will run your jasmine tests, loading all the tests with JSPM instead of node's `require`. The second argument `errBack` is a function that is called when the tests either succeed or fail. If the tests succeed, `errBack` will be called with a `null` first argument. If they fail, `errBack` will be called with a reason why the tests failed.
-
-Errback usage:
-```js
-runTests(opts, function(err) {
-  if (err) {
-    console.error(err);
-  } else {
-    console.log("tests passed");
-  }
-}
-```
+This will run your jasmine tests, loading all the tests with JSPM instead of node's `require`. 
 
 ##### Options:
+The first arguments are options that you would pass to jspm-jasmine similar to the CLI.
+
 ```js
 runTests({
 
@@ -143,6 +134,12 @@ runTests({
   // Provide a custom directory to package.json
   // Defaults to path where `jspmjasmine` is being executed
   packagePath: "RELATIVE/PATH/TO/PACKAGE/JSON/DIRECTORY/",
+
+  // Provide a custom reporters
+  // If you add a reporter, the default ConsoleReporter will not be added
+  reporter: new CustomReporterClass()
+  // You can pass the multiple reporters
+  // reporter: [new CustomReporterClass1(), new CustomReporterClass1()]
 
   // Add a coverage report
   // Defaults to undefined
@@ -176,6 +173,21 @@ runTests({
   watchFiles: ["src/**/*.js", "another-glob*.js"],
 })
 ```
+
+##### Error Callback *(optional)*:
+The second argument `errBack` is a function that is called when the tests either succeed or fail. If the tests succeed, `errBack` will be called with a `null` first argument. If they fail, `errBack` will be called with a reason why the tests failed. 
+
+```js
+runTests(opts, function(err) {
+  if (err) {
+    console.error(err);
+  } else {
+    console.log("tests passed");
+  }
+}
+```
+
+jspm-jasmine already provides a default `errBack` function which is adequate under most circumstances. You need to provide an `errback` only if you wish to modify the default logging behaviour.
 
 ## mockModules
 In order to mock or ignore files, you'll need to call the `mockModules` function which is defined on the global by
