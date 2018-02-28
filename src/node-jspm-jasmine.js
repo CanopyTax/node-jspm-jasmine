@@ -100,6 +100,20 @@ export function runTests(opts, errCallback = errorCallbackDefault) {
 		})
 	}
 
+	const baseURL = (function getBaseURL() {
+		const sysPathOnly = System.getConfig().baseURL.replace(/^file:\/\//, ''); //isolate the path from URL
+		const sysPath = path.normalize(sysPathOnly).replace(/^\\/,''); //fixes path for Windows
+		const jspmPath = path.dirname(process.env.jspmConfigPath);
+		const base = path.relative(jspmPath, sysPath);
+		return (base.length !== 0) ?
+			`${base}/` : base;
+	})();
+
+	function fileWatchAndImport(file) {
+		watchFile(file);
+		return SystemJS.import(file.slice(baseURL.length));
+	}
+
 	try {
 		const systemInstantiate = SystemJS.instantiate;
 
@@ -264,7 +278,7 @@ export function runTests(opts, errCallback = errorCallbackDefault) {
 		// We should maybe start passing in a the config object...
 		const importTheseTestFiles = importTestFiles.bind(
 			null,
-			SystemJS,
+			fileWatchAndImport,
 			jasmine,
 			specDir,
 			specFiles,
@@ -284,10 +298,7 @@ export function runTests(opts, errCallback = errorCallbackDefault) {
 						throw err;
 					}
 					Promise
-					.all(files.map(file => {
-						watchFile(file);
-						return SystemJS.import(file);
-					}))
+					.all(files.map(fileWatchAndImport))
 					.then(() => Promise.all(global.helperPromises))
 					.then(() => {
 						if (--numHelperGlobsLeft === 0) {
@@ -313,7 +324,7 @@ export function runTests(opts, errCallback = errorCallbackDefault) {
 	}
 }
 
-function importTestFiles(SystemJS, jasmine, specDir, specFiles, coverage, errCallback, timer) {
+function importTestFiles(fileWatchAndImport, jasmine, specDir, specFiles, coverage, errCallback, timer) {
 
 	// the "onComplete" hook to prevent jasmine's self-righteous exit
 	jasmine.onComplete(function (passed) {
@@ -326,10 +337,9 @@ function importTestFiles(SystemJS, jasmine, specDir, specFiles, coverage, errCal
 			console.log(chalk.blue(`Calculating coverage for all untested files`));
 			// import the rest of the modules not already imported (evaluated)
 			// as dependencies of specs
-			Promise.all(Object.keys(coverage.coverageFiles).map(function (file) {
-				watchFile(file);
-				return SystemJS.import(path.join(process.cwd(), file));
-			})).then(function () {
+			Promise
+			.all(Object.keys(coverage.coverageFiles).map(fileWatchAndImport))
+			.then(function () {
 				let coverageSucceeded = false;
 				const coverageReporter = coverage.reporter || 'html';
 				if (typeof __coverage__ === 'undefined') {
@@ -381,10 +391,7 @@ function importTestFiles(SystemJS, jasmine, specDir, specFiles, coverage, errCal
 					throw err;
 				}
 				Promise
-				.all(files.map(file => {
-					watchFile(file);
-					return SystemJS.import(file);
-				}))
+				.all(files.map(fileWatchAndImport))
 				.then(() => {
 					if (--numSpecGlobsLeft === 0) {
 						jasmine.execute();

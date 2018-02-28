@@ -138,8 +138,8 @@ runTests({
   // Provide custom reporters
   // If you add a reporter, the default ConsoleReporter will not be added
   reporter: new CustomReporterClass()
-  // You can also pass multiple reporters
-  // reporter: [new CustomReporterClass1(), new CustomReporterClass1()]
+  // You can also pass multiple custom reporters
+  // reporter: [new CustomReporterClass1(), new CustomReporterClass2(), ...]
 
   // Add a coverage report
   // Defaults to undefined
